@@ -1,0 +1,106 @@
+---
+title: "Лабораторная работа №6"
+author: Шевченко Д. Д.
+format:
+    md:
+        output-file: readme.md
+editor: visual
+---
+
+# Цель работы:
+
+### 1) Закрепить навыки исследования данных журнала Windows Active Directory
+
+### 2) Изучить структуру журнала системы Windows Active Directory
+
+### 3) Зекрепить практические навыки использования языка программирования R для обработки данных
+
+### 4) Закрепить знания основных функций обработки данных экосистемы tidyverse языка R
+
+# Ход работы:
+
+## Задание №1
+
+### Импортируйте данные в R
+
+```{r}
+jslite <- jsonlite::stream_in(file('./caldera_attack_evals_round1_day1_2019-10-20201108.json'))
+library('xml2')
+library('rvest')
+library('dplyr')
+
+web <- "https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/appendix-l--events-to-monitor"
+web_p <- xml2::read_html(web)
+a <- rvest::html_table(web_p)[[1]]
+```
+
+## Задание №2
+
+### Привести датасеты в вид "аккуратных данных", преобразовать типы столбцов в соответствии с типом данных
+
+```{r}
+jslite$'@timestamp' <- as.POSIXct(jslite$'@timestamp', format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")
+jslite <- jslite %>% rename(timestamp = `@timestamp`, metadata = `@metadata`)
+```
+
+## Задание №3
+
+###  Просмотрите общую структуру данных с помощью функции glimpse()
+
+```{r}
+glimpse(a)
+glimpse(jslite)
+```
+
+## Анализ
+
+## Задание №1
+
+### Раскройте датафрейм избавившись от вложенных датафреймов
+
+```{r}
+jslite <- jslite %>% tidyr::unnest(c(metadata, event, log, winlog, ecs, host, agent), names_sep = ".")
+jslite %>% (glimpse)
+```
+
+## Задание №2
+
+### Минимизируйте количество колонок в датафрейме – уберите колоки с единственным значением параметра.
+
+```{r}
+b <- subset(jslite, select = - c(metadata.beat, metadata.type,metadata.version,metadata.topic,event.kind,winlog.api,agent.ephemeral_id,agent.hostname,agent.id,agent.version,agent.type))
+b %>% glimpse()
+```
+
+## Задание №3
+
+###  Какое количество хостов представлено в данном датасете?
+
+```{r}
+b %>% select(host.name) %>% unique()
+```
+
+## Задание №4
+
+### Подготовьте датафрейм с расшифровкой Windows Event_ID, приведите типы данных к типу их значений.
+
+
+```{r}
+a <- a %>% rename(Current_Windows_Event_ID = `Current Windows Event ID`, Legacy_Windows_Event_ID = `Legacy Windows Event ID`, Potential_Criticality = `Potential Criticality`, Event_Summary = `Event Summary`)
+a$Current_Windows_Event_ID <- as.integer(a$Current_Windows_Event_ID)
+a$Legacy_Windows_Event_ID <- as.integer(a$Legacy_Windows_Event_ID)
+a %>% glimpse()
+```
+
+## Задание №5
+
+### Есть ли в логе события с высоким и средним уровнем значимости? Сколько их?
+
+```{r}
+a %>% select(Potential_Criticality) %>% filter(Potential_Criticality == 'High' | Potential_Criticality == 'Medium') %>% group_by(Potential_Criticality) %>% count()
+```
+
+
+## Вывод
+
+### Получилось закрепить навыки исследования данных журнала Windows Active Directory, изучить структуру журнала системы Windows Active Directory, зекрепить практические навыки использования языка программирования R для обработки данных, а так же закрепить знания основных функций обработки данных экосистемы tidyverse языка R
