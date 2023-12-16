@@ -1,0 +1,145 @@
+---
+title: "Лабораторная работа №5"
+author: Шевченко Д. Д.
+format:
+    md:
+        output-file: readme.md
+editor: visual
+---
+
+# Цель работы:
+
+### 1) Получить знания о методах исследования радиоэлектронной обстановки.
+
+### 2) Составить представление о механизмах работы Wi-Fi сетей на канальном и сетевом уровне модели OSI.
+
+### 3) Зекрепить практические навыки использования языка программирования R для обработки данных
+
+### 4) Закрепить знания основных функций обработки данных экосистемы tidyverse языка R
+
+# Ход работы:
+
+```{r}
+library('dplyr')
+library('tidyverse')
+```
+
+## Задание №1
+
+### Импортируйте данные.
+
+```{r}
+a <- read.csv(file = "mir.csv-01.csv")
+b <-read.csv(file = "mir.csv-01.csv",nrows = 167)
+c <-read.csv(file = "mir.csv-01.csv",skip = 169)
+```
+
+
+## Задание №2
+
+### Привести датасеты в вид “аккуратных данных”, преобразовать типы столбцов в соответствии с типом данных
+
+```{r}
+b$Last.time.seen <- as.POSIXct(b$Last.time.seen, format = "%Y-%m-%d %H:%M:%S")
+b$First.time.seen <- as.POSIXct(b$First.time.seen, format = "%Y-%m-%d %H:%M:%S")
+c$Last.time.seen <- as.POSIXct(c$Last.time.seen, format = "%Y-%m-%d %H:%M:%S")
+c$First.time.seen <- as.POSIXct(c$First.time.seen, format = "%Y-%m-%d %H:%M:%S")
+c <- c %>% mutate_at(vars(Station.MAC, BSSID, Probed.ESSIDs), trimws) %>% mutate_at(vars(Station.MAC, BSSID, Probed.ESSIDs), na_if, "")
+```
+
+
+## Задание №3
+
+### Просмотрите общую структуру данных с помощью функции glimpse()
+
+```{r}
+b %>% glimpse()
+c %>% glimpse()
+```
+
+
+## Анализ
+
+## Точки доступа
+
+
+## Задание №1
+
+### Определить небезопасные точки доступа (без шифрования – OPN)
+
+```{r}
+b %>% filter(Privacy == ' OPN')
+```
+
+
+## Задание №2
+
+### Выявить устройства, использующие последнюю версию протокола шифрования WPA3, и названия точек доступа, реализованных на этих устройствах
+
+```{r}
+b %>% select(ESSID, BSSID, Privacy) %>% filter(Privacy == ' WPA3 WPA2')
+```
+
+
+## Задание №3
+
+### Отсортировать точки доступа по интервалу времени, в течение которого они находились на связи, по убыванию.
+
+```{r}
+dt <- difftime(b$Last.time.seen, b$First.time.seen, units = "secs")
+b2 <- b
+b2 <- cbind(b2,dt)
+b2 %>% select(BSSID, First.time.seen, Last.time.seen, ESSID, dt) %>% arrange(desc(dt))
+```
+
+## Задание №4
+
+###  Обнаружить топ-10 самых быстрых точек доступа.
+
+```{r}
+b %>% select(BSSID,Speed,ESSID) %>% arrange(desc(Speed)) %>% head(10)
+```
+
+## Задание №5
+
+###  Отсортировать точки доступа по частоте отправки запросов (beacons) в единицу времени по их убыванию
+
+```{r}
+b %>% select(BSSID, X..beacons, ESSID) %>% arrange(desc(X..beacons)) 
+```
+
+
+## Данные клиентов
+
+
+## Задание №1
+
+### Обнаружить устройства, которые НЕ рандомизируют свой MAC адрес
+
+```{r}
+c %>% select(Station.MAC) %>% filter(!Station.MAC %in% grep(":",c$Station.MAC, value = TRUE)) %>% unique()
+```
+
+
+## Задание №2
+
+### Кластеризовать запросы от устройств к точкам доступа по их именам. Определить время появления устройства в зоне радиовидимости и время выхода его из нее.
+
+
+```{r}
+c %>% filter(Probed.ESSIDs != '<NA>') %>% group_by(Station.MAC, Probed.ESSIDs) %>%  summarise("first-time" = min(First.time.seen), "last-time" = max(Last.time.seen), Power)
+```
+
+
+## Задание №3
+
+### Оценить стабильность уровня сигнала внури кластера во времени. Выявить наиболее стабильный кластер.
+
+```{r}
+c %>% head(1) %>% filter(Probed.ESSIDs != '<NA>',Power != '<NA>' ) %>% group_by(Station.MAC) %>% arrange(desc(Power)) %>%  summarise("first-time" = min(First.time.seen), "last-time" = max(Last.time.seen), Power)
+```
+
+
+## Вывод
+
+### Получилось получить знания о методах исследования радиоэлектронной обстановки, составить представление о механизмах работы Wi-Fi сетей на канальном и сетевом уровне модели OSI, зекрепить практические навыки использования языка программирования R для обработки данных, а так же закрепить знания основных функций обработки данных экосистемы tidyverse языка R
